@@ -1,0 +1,4 @@
+/env
+.env
+# ignore all txts in the root of the repo
+*.txt
