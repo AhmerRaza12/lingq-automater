@@ -7,12 +7,12 @@ from selenium import webdriver
 import os
 import time
 
-# Load environment variables
+
 load_dotenv()
 USERNAME = os.getenv('LINGQ_USERNAME')
 PASSWORD = os.getenv('LINGQ_PASSWORD')
 
-# Set Chrome options
+
 options = webdriver.ChromeOptions()
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
@@ -58,43 +58,32 @@ def login():
     time.sleep(5)
 
 def lingq_automater():
-    global driver  
-    # login()
-    # Read lessons from lesson_links.txt where the links are stored on each line
+    global driver
     with open("lesson_links.txt", "r") as f:
         lesson_links = f.readlines()
-    
-    for lesson_link in lesson_links:
-        # dont get the lesson_link which has ,completed in it
+    for index, lesson_link in enumerate(lesson_links):
         if ",completed" in lesson_link:
             continue
+        
         lesson_link = lesson_link.strip()
         lesson_id = extract_lesson_id(lesson_link)
         
         driver.get(lesson_link)
         time.sleep(2)
-        # No need to call login() again if already logged in
         if "login" in driver.current_url:
             login()
         
         try:
-            options_button = driver.find_element(By.XPATH, "//button[@aria-controls='lesson-menu']")
-            options_button.click()
-            edit_button = driver.find_element(By.XPATH, "//a[.='Edit Lesson']")
-            edit_button.click()
-            time.sleep(8)
             para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
             time.sleep(4)
 
             start_index = load_progress(lesson_id)
-            # if start_index equals to the length of para_texts, then the lesson is already completed so append ",completed" to the lesson_link
             if start_index == len(para_texts):
-                with open("lesson_links.txt", "a") as f:
-                    f.write(",completed")
+                lesson_links[index] = lesson_link + ",completed\n"
                 continue
 
             for i in range(start_index, len(para_texts)):
-                if i > 0 and i % 60 == 0:  
+                if i > 0 and i % 60 == 0:
                     driver.quit()
                     driver = start_driver()
                     driver.get(lesson_link)
@@ -102,11 +91,6 @@ def lingq_automater():
                     time.sleep(5)
                     driver.get(lesson_link)
                     time.sleep(5)
-                    options_button = driver.find_element(By.XPATH, "//button[@aria-controls='lesson-menu']")
-                    options_button.click()
-                    edit_button = driver.find_element(By.XPATH, "//a[.='Edit Lesson']")
-                    edit_button.click()
-                    time.sleep(8)
                     para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
                     time.sleep(4)
 
@@ -126,11 +110,11 @@ def lingq_automater():
                                     time.sleep(1)
                                     driver.execute_script("arguments[0].click();", para_text)
                                     time.sleep(1)
-                                    remove_spacing = driver.find_element(By.XPATH, "//button[.='Remove paragraph spacing']")
+                                    remove_spacing = driver.find_element(By.XPATH, "(//div[@class='editor-section--item editor-section--controller grid-layout grid-justify--left']//button[@class='has-icon is-white is-rounded button'])[2]")
                                     driver.execute_script("arguments[0].scrollIntoView();", remove_spacing)
                                     time.sleep(1)
                                     driver.execute_script("arguments[0].click();", remove_spacing)
-                                    time.sleep(5)
+                                    time.sleep(4)
                             except IndexError:
                                 break
                     save_progress(i, lesson_id)
@@ -143,5 +127,8 @@ def lingq_automater():
         except Exception as e:
             print(f"An error occurred: {e}")
             pass
+
+    with open("lesson_links.txt", "w") as f:
+        f.writelines(lesson_links)
 
 lingq_automater()
