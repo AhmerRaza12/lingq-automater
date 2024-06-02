@@ -18,6 +18,9 @@ options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
 options.add_argument('--start-maximized')
+options.add_argument('--disable-extensions')
+options.add_argument('--disable-gpu')
+options.add_argument('--headless=new')
 
 
 
@@ -41,6 +44,15 @@ def load_progress(lesson_id):
     with open(file_name, "r") as f:
         return int(f.read().strip())
 
+def modal_close():
+    try:
+        modal= driver.find_element(By.XPATH, "//div[@class='CT_Interstitial']")
+        modal_close = driver.find_element(By.XPATH, "//div[@class='CT_Interstitial']/span")
+        time.sleep(1)
+        modal_close.click()
+    except NoSuchElementException:
+        pass
+
 def login():
    
     
@@ -61,7 +73,7 @@ def lingq_automater():
     global driver
     with open("lesson_links.txt", "r") as f:
         lesson_links = f.readlines()
-    for index, lesson_link in enumerate(lesson_links):
+    for lesson_link in lesson_links:
         if ",completed" in lesson_link:
             continue
         
@@ -75,20 +87,19 @@ def lingq_automater():
         
         try:
             para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
-            time.sleep(2)
+            time.sleep(4)
 
             start_index = load_progress(lesson_id)
-            if start_index == len(para_texts):
-                lesson_links[index] = lesson_link + ",completed\n"
-                continue
 
             for i in range(start_index, len(para_texts)):
-                if i > 0 and i % 60 == 0:
+                if i > 0 and i % 70 == 0:
                     driver.quit()
                     driver = start_driver()
                     driver.get(lesson_link)
                     login()
                     time.sleep(4)
+                    # if there is a modal, close it
+                    modal_close()
                     para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
                     time.sleep(4)
 
