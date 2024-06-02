@@ -6,41 +6,44 @@ from dotenv import load_dotenv
 from selenium import webdriver
 import os
 import time
-import re
 
 # Load environment variables
 load_dotenv()
 USERNAME = os.getenv('LINGQ_USERNAME')
 PASSWORD = os.getenv('LINGQ_PASSWORD')
 
+# Set Chrome options
 options = webdriver.ChromeOptions()
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
 options.add_argument('--start-maximized')
-driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-
-# Function to sanitize lesson name to be a valid file name
-def sanitize_lesson_name(lesson_name):
-    return re.sub(r'[^a-zA-Z0-9_\-]', '_', lesson_name)
 
 
-def save_progress(index, lesson_name):
-    with open(f"{lesson_name}_progress.txt", "w") as f:
+
+def start_driver():
+    return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+
+driver = start_driver()
+
+def extract_lesson_id(lesson_link):
+    return lesson_link.split('/')[-1].strip()
+
+def save_progress(index, lesson_id):
+    with open(f"{lesson_id}_progress.txt", "w") as f:
         f.write(str(index))
 
-
-def load_progress(lesson_name):
-    file_name = f"{lesson_name}_progress.txt"
+def load_progress(lesson_id):
+    file_name = f"{lesson_id}_progress.txt"
     if not os.path.exists(file_name):
         with open(file_name, "w") as f:
             f.write("0")
     with open(file_name, "r") as f:
         return int(f.read().strip())
 
-def lingq_automater():
-    driver.get('https://www.lingq.com/en/accounts/login/')
-    time.sleep(5)
+def login():
+   
+    
     email_field = driver.find_element(By.XPATH, "//div[@class='email-field field']/div/input[@id='id_username']")
     time.sleep(1)
     password_field = driver.find_element(By.XPATH, "//div[@class='email-field field']/div/input[@id='id_password']")
@@ -53,16 +56,27 @@ def lingq_automater():
     time.sleep(1)
     login_button.click()
     time.sleep(5)
-    imp_lesson = driver.find_element(By.XPATH, "//a[.='Imported Lessons']")
-    imp_lesson.click()
-    time.sleep(4)
-    my_lessons = driver.find_elements(By.XPATH, "//div[@class='library-sections--item item--my_lessons']//a[@class='library-item library-item--lesson grid-layout has-background-white box is-paddingless is-shadowless']")
-    
-    for my_lesson in my_lessons:
-        lesson_name = sanitize_lesson_name(my_lesson.text)  
-        my_lesson.click()
-        time.sleep(5)
 
+def lingq_automater():
+    global driver  
+    # login()
+    # Read lessons from lesson_links.txt where the links are stored on each line
+    with open("lesson_links.txt", "r") as f:
+        lesson_links = f.readlines()
+    
+    for lesson_link in lesson_links:
+        # dont get the lesson_link which has ,completed in it
+        if ",completed" in lesson_link:
+            continue
+        lesson_link = lesson_link.strip()
+        lesson_id = extract_lesson_id(lesson_link)
+        
+        driver.get(lesson_link)
+        time.sleep(2)
+        # No need to call login() again if already logged in
+        if "login" in driver.current_url:
+            login()
+        
         try:
             options_button = driver.find_element(By.XPATH, "//button[@aria-controls='lesson-menu']")
             options_button.click()
@@ -72,9 +86,30 @@ def lingq_automater():
             para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
             time.sleep(4)
 
-            start_index = load_progress(lesson_name)
+            start_index = load_progress(lesson_id)
+            # if start_index equals to the length of para_texts, then the lesson is already completed so append ",completed" to the lesson_link
+            if start_index == len(para_texts):
+                with open("lesson_links.txt", "a") as f:
+                    f.write(",completed")
+                continue
 
             for i in range(start_index, len(para_texts)):
+                if i > 0 and i % 60 == 0:  
+                    driver.quit()
+                    driver = start_driver()
+                    driver.get(lesson_link)
+                    login()
+                    time.sleep(5)
+                    driver.get(lesson_link)
+                    time.sleep(5)
+                    options_button = driver.find_element(By.XPATH, "//button[@aria-controls='lesson-menu']")
+                    options_button.click()
+                    edit_button = driver.find_element(By.XPATH, "//a[.='Edit Lesson']")
+                    edit_button.click()
+                    time.sleep(8)
+                    para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
+                    time.sleep(4)
+
                 try:
                     para_text = para_texts[i]
                     itr_text = para_text.text
@@ -90,15 +125,15 @@ def lingq_automater():
                                     driver.execute_script("arguments[0].scrollIntoView();", para_text)
                                     time.sleep(1)
                                     driver.execute_script("arguments[0].click();", para_text)
-                                    time.sleep(3)
+                                    time.sleep(1)
                                     remove_spacing = driver.find_element(By.XPATH, "//button[.='Remove paragraph spacing']")
                                     driver.execute_script("arguments[0].scrollIntoView();", remove_spacing)
                                     time.sleep(1)
                                     driver.execute_script("arguments[0].click();", remove_spacing)
-                                    time.sleep(6)
+                                    time.sleep(5)
                             except IndexError:
                                 break
-                    save_progress(i, lesson_name)  
+                    save_progress(i, lesson_id)
                 except StaleElementReferenceException:
                     para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
                 except NoSuchElementException as e:
