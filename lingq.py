@@ -75,7 +75,7 @@ def lingq_automater():
         
         try:
             para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
-            time.sleep(4)
+            time.sleep(2)
 
             start_index = load_progress(lesson_id)
             if start_index == len(para_texts):
@@ -88,9 +88,7 @@ def lingq_automater():
                     driver = start_driver()
                     driver.get(lesson_link)
                     login()
-                    time.sleep(5)
-                    driver.get(lesson_link)
-                    time.sleep(5)
+                    time.sleep(4)
                     para_texts = driver.find_elements(By.XPATH, "//div[@class='paragraph-editor grid-layout grid-gap-half'][position() > 1]//span[@data-text='true']")
                     time.sleep(4)
 
