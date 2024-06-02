@@ -19,8 +19,8 @@ options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
 options.add_argument('--start-maximized')
 options.add_argument('--disable-extensions')
-options.add_argument('--disable-gpu')
-options.add_argument('--headless=new')
+# options.add_argument('--disable-gpu')
+# options.add_argument('--headless=new')
 
 
 
@@ -46,11 +46,15 @@ def load_progress(lesson_id):
 
 def modal_close():
     try:
-        modal= driver.find_element(By.XPATH, "//div[@class='CT_Interstitial']")
-        modal_close = driver.find_element(By.XPATH, "//div[@class='CT_Interstitial']/span")
-        time.sleep(1)
-        modal_close.click()
+        iframe = driver.find_element(By.XPATH, "//iframe[@id='wiz-iframe-intent']")
+        if iframe:
+            print('Found iframe')
+        driver.switch_to.frame(iframe)
+        modal_close_button = driver.find_element(By.XPATH, "//span[@class='CT_InterstitialClose']")
+        driver.execute_script("arguments[0].onclick();", modal_close_button)
+        driver.switch_to.default_content()
     except NoSuchElementException:
+        print('Could close modal')
         pass
 
 def login():
@@ -119,11 +123,11 @@ def lingq_automater():
                                     time.sleep(1)
                                     driver.execute_script("arguments[0].click();", para_text)
                                     time.sleep(1)
-                                    remove_spacing = driver.find_element(By.XPATH, "(//div[@class='editor-section--item editor-section--controller grid-layout grid-justify--left']//button[@class='has-icon is-white is-rounded button'])[2]")
+                                    remove_spacing = driver.find_element(By.XPATH, "//button[.='Absatzabstand löschen']")
                                     driver.execute_script("arguments[0].scrollIntoView();", remove_spacing)
                                     time.sleep(1)
                                     driver.execute_script("arguments[0].click();", remove_spacing)
-                                    time.sleep(4)
+                                    time.sleep(5)
                             except IndexError:
                                 break
                     save_progress(i, lesson_id)
@@ -132,6 +136,11 @@ def lingq_automater():
                 except NoSuchElementException as e:
                     print(f"An error occurred: {e}")
                     break
+            # print lesson id completed and append ,completed to the lesson link
+            print(f"{lesson_id},completed")
+            
+
+
 
         except Exception as e:
             print(f"An error occurred: {e}")

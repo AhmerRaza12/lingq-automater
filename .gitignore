@@ -1,7 +1,8 @@
 /env
 .env
 
-# *.txt
+*.txt
+
 
 !requirements.txt
 !lesson_links.txt
